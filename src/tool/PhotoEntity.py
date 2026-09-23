@@ -21,6 +21,15 @@ class PhotoEntity:
         """
         self.img_path = img_path
         self.image = self._correct_image_orientation(img_path)
+
+        # Cap resolution before any detection/compositing: full-res RGBA copy
+        # chains on modern phone photos (20MP+) blow past small-container limits
+        max_px = int(os.environ.get('LIYING_MAX_PIXELS', '3000000'))
+        h, w = self.image.shape[:2]
+        if h * w > max_px:
+            scale = (max_px / (h * w)) ** 0.5
+            self.image = cv.resize(self.image, (int(w * scale), int(h * scale)),
+                                   interpolation=cv.INTER_AREA)
         
         # Use default model paths if not provided
         if yolov8_model_path is None:
