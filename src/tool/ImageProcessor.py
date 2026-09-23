@@ -54,7 +54,8 @@ class ImageProcessor:
             raise FileNotFoundError(f"RMBG model path does not exist: {RMBG_model_path}")
 
         self.photo = PhotoEntity(img_path, yolov8_model_path, yunet_model_path, y_b)
-        self.segmentation = ImageSegmentation(model_path=RMBG_model_path, model_input_size=[1024, 1024],
+        rmbg_size = int(os.environ.get('LIYING_RMBG_SIZE', '1024'))
+        self.segmentation = ImageSegmentation(model_path=RMBG_model_path, model_input_size=[rmbg_size, rmbg_size],
                                            rgb_list=rgb_list if rgb_list is not None else [255, 255, 255])
         self.photo_requirements_detector = PhotoRequirements()
 
@@ -230,7 +231,15 @@ class ImageProcessor:
                 raise ValueError("The RGB/RGBA value format is incorrect")
             self.segmentation.rgb_list = rgb_to_rgba(rgb_list)
 
-        self.photo.image = self.segmentation.infer(self.photo.image)
+        # Downsample oversized photos before full-res RGBA compositing:
+        # memory-hungry copy chains blow past small-container limits
+        img = self.photo.image
+        max_px = int(os.environ.get('LIYING_MAX_PIXELS', '4000000'))
+        h, w = img.shape[:2]
+        if h * w > max_px:
+            scale = (max_px / (h * w)) ** 0.5
+            img = cv.resize(img, (int(w * scale), int(h * scale)), interpolation=cv.INTER_AREA)
+        self.photo.image = self.segmentation.infer(img)
         return self.photo
 
     def resize_image(self, photo_type):
