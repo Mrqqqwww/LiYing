@@ -15,4 +15,8 @@ RUN mkdir -p /app/src/model     && curl -sfL -o /app/src/model/face_detection_yu
 
 EXPOSE 7860
 
+# Chinese UI by default (server locale would otherwise pick English; dropdown
+# choices/values must stay consistent across free-tier restarts)
+ENV LIYING_LANG=zh
+
 CMD ["python", "src/webui/app.py", "--server_name", "0.0.0.0", "--server_port", "7860", "--deployment_mode", "server"]
